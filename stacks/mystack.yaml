@@ -69,10 +69,10 @@ Parameters:
       - TEST
       - PROD
     Default: PROD
-  DatabaseName:
-    Type: String
-    Default: pca
-    Description: Glue catalog database name used to contain tables/views for SQL integration.
+  # DatabaseName:
+  #   Type: String
+  #   Default: pca
+  #   Description: Glue catalog database name used to contain tables/views for SQL integration.
 Conditions:
   ShouldCreateInputBucket:
     Fn::Equals:
@@ -225,8 +225,8 @@ Resources:
         #     - ShouldEnableKendraSearch
         #     - Ref: KendraIndex
         #     - None
-        DatabaseName:
-          Ref: DatabaseName
+        # DatabaseName:
+        #   Ref: DatabaseName
 Outputs:
   InputBucket:
     Description: S3 Bucket for uploading input audio files
