@@ -121,11 +121,11 @@ Resources:
             Transitions:
               - TransitionInDays: 1
                 StorageClass: INTELLIGENT_TIERING
-  SSM:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: https://raw.githubusercontent.com/luis95garay/speech2text_sentimentanalysis/main/stacks/myssm.yaml
-      Parameters:
+        # SSM:
+        #   Type: AWS::CloudFormation::Stack
+        #   Properties:
+        #     TemplateURL: https://raw.githubusercontent.com/luis95garay/speech2text_sentimentanalysis/main/stacks/myssm.yaml
+        #     Parameters:
         # BulkUploadBucketName:
         #   Fn::If:
         #     - ShouldCreateBulkUploadBucket
@@ -149,34 +149,34 @@ Resources:
         #   Ref: EntityThreshold
         # EntityTypes:
         #   Ref: EntityTypes
-        InputBucketAudioPlayback:
-          Ref: InputBucketAudioPlayback
-        InputBucketFailedTranscriptions:
-          Ref: InputBucketFailedTranscriptions
-        InputBucketName:
-          Fn::If:
-            - ShouldCreateInputBucket
-            - Ref: InputBucket
-            - Ref: InputBucketName
-        InputBucketRawAudio:
-          Ref: InputBucketRawAudio
-        InputBucketOrigTranscripts:
-          Ref: InputBucketOrigTranscripts
+        # InputBucketAudioPlayback:
+        #   Ref: InputBucketAudioPlayback
+        # InputBucketFailedTranscriptions:
+        #   Ref: InputBucketFailedTranscriptions
+        # InputBucketName:
+        #   Fn::If:
+        #     - ShouldCreateInputBucket
+        #     - Ref: InputBucket
+        #     - Ref: InputBucketName
+        # InputBucketRawAudio:
+        #   Ref: InputBucketRawAudio
+        # InputBucketOrigTranscripts:
+        #   Ref: InputBucketOrigTranscripts
         # MaxSpeakers:
         #   Ref: MaxSpeakers
         # MinSentimentNegative:
         #   Ref: MinSentimentNegative
         # MinSentimentPositive:
         #   Ref: MinSentimentPositive
-        OutputBucketName:
-          Fn::If:
-            - ShouldCreateOutputBucket
-            - Ref: OutputBucket
-            - Ref: OutputBucketName
-        OutputBucketTranscribeResults:
-          Ref: OutputBucketTranscribeResults
-        OutputBucketParsedResults:
-          Ref: OutputBucketParsedResults
+        # OutputBucketName:
+        #   Fn::If:
+        #     - ShouldCreateOutputBucket
+        #     - Ref: OutputBucket
+        #     - Ref: OutputBucketName
+        # OutputBucketTranscribeResults:
+        #   Ref: OutputBucketTranscribeResults
+        # OutputBucketParsedResults:
+        #   Ref: OutputBucketParsedResults
         # SpeakerNames:
         #   Ref: SpeakerNames
         # SpeakerSeparationType:
