@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Amazon Transcribe Post Call Analytics - PCA Server - BulkImport State
+  Machine
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  BulkUploadStepFunctionName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: BulkUploadStepFunctionName
+  BulkUploadBucketName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: BulkUploadBucket
+  InputBucketName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: InputBucketName
+Globals:
+  Function:
+    Runtime: python3.11
+    MemorySize: 1024
+    Timeout: 60
+Resources:
+  BulkFilesCount:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-ml-blog-us-east-1/artifacts/pca/0.7.4/31e932cf51a204dddbd676f58fc8d7a8
+      Handler: pca-aws-sf-bulk-files-count.lambda_handler
+      Policies:
+      - Statement:
+        - Sid: S3BucketReadPolicy
+          Effect: Allow
+          Action:
+          - s3:ListBucket
+          - s3:GetObject
+          Resource:
+          - Fn::Sub: arn:aws:s3:::${BulkUploadBucketName}
+          - Fn::Sub: arn:aws:s3:::${BulkUploadBucketName}/*
+      - Statement:
+        - Sid: SSMGetParameterPolicy
+          Effect: Allow
+          Action:
+          - ssm:GetParameter
+          Resource:
+            Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+  BulkMoveFiles:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-ml-blog-us-east-1/artifacts/pca/0.7.4/31e932cf51a204dddbd676f58fc8d7a8
+      Handler: pca-aws-sf-bulk-move-files.lambda_handler
+      Timeout: 300
+      Policies:
+      - Statement:
+        - Sid: S3BucketReadWritePolicy
+          Effect: Allow
+          Action:
+          - s3:ListBucket
+          - s3:GetObject
+          - s3:PutObject
+          - s3:DeleteObject
+          Resource:
+          - Fn::Sub: arn:aws:s3:::${BulkUploadBucketName}
+          - Fn::Sub: arn:aws:s3:::${BulkUploadBucketName}/*
+          - Fn::Sub: arn:aws:s3:::${InputBucketName}
+          - Fn::Sub: arn:aws:s3:::${InputBucketName}/*
+  BulkQueueSpace:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: s3://aws-ml-blog-us-east-1/artifacts/pca/0.7.4/31e932cf51a204dddbd676f58fc8d7a8
+      Handler: pca-aws-sf-bulk-queue-space.lambda_handler
+      Timeout: 30
+      Policies:
+      - arn:aws:iam::aws:policy/AmazonTranscribeReadOnlyAccess
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Sub: /aws/vendedlogs/${BulkUploadStepFunctionName}
+      RetentionInDays: 90
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: states.amazonaws.com
+          Action: sts:AssumeRole
+      Policies:
+      - PolicyName: AllowInvokeFunctions
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: lambda:InvokeFunction
+            Resource:
+            - Fn::GetAtt:
+              - BulkFilesCount
+              - Arn
+            - Fn::GetAtt:
+              - BulkQueueSpace
+              - Arn
+            - Fn::GetAtt:
+              - BulkMoveFiles
+              - Arn
+      - PolicyName: CloudWatchLogs
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogDelivery
+            - logs:GetLogDelivery
+            - logs:UpdateLogDelivery
+            - logs:DeleteLogDelivery
+            - logs:ListLogDeliveries
+            - logs:PutResourcePolicy
+            - logs:DescribeResourcePolicies
+            - logs:DescribeLogGroups
+            Resource: '*'
+  StateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName:
+        Ref: BulkUploadStepFunctionName
+      DefinitionS3Location:
+        Bucket: aws-ml-blog-us-east-1
+        Key: artifacts/pca/0.7.4/f1a21acfa0f6c6ad8aa18ae505355668
+      DefinitionSubstitutions:
+        BulkFilesCountArn:
+          Fn::GetAtt:
+          - BulkFilesCount
+          - Arn
+        BulkQueueSpaceArn:
+          Fn::GetAtt:
+          - BulkQueueSpace
+          - Arn
+        BulkMoveFilesArn:
+          Fn::GetAtt:
+          - BulkMoveFiles
+          - Arn
+      LoggingConfiguration:
+        Level: ERROR
+        IncludeExecutionData: true
+        Destinations:
+        - CloudWatchLogsLogGroup:
+            LogGroupArn:
+              Fn::GetAtt:
+              - LogGroup
+              - Arn
+      RoleArn:
+        Fn::GetAtt:
+        - Role
+        - Arn
+Outputs:
+  RolesForKMSKey:
+    Value:
+      Fn::Join:
+      - ', '
+      - - Fn::Sub: '"${BulkMoveFilesRole.Arn}"'
+        - Fn::Sub: '"${BulkFilesCountRole.Arn}"'

@@ -1,0 +1,95 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Amazon Transcribe Post Call Analytics - PCA Server - FFMPEG Download
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  SupportFilesBucketName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: SupportFilesBucketName
+  FFMPEGZipName:
+    Type: String
+    Default: ffmpeg.zip
+  ffmpegDownloadUrl:
+    Type: String
+    Default: https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+    Description: URL for ffmpeg binary distribution tar file download - see https://www.johnvansickle.com/ffmpeg/
+Resources:
+  ffmpegZipFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Resource:
+              Fn::Sub:
+              - arn:aws:s3:::${bucket}*
+              - bucket:
+                  Ref: SupportFilesBucketName
+            Action:
+            - s3:PutObject
+        PolicyName: ffmpegZipFunctionS3Policy
+  ffmpegZipFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.11
+      Role:
+        Fn::GetAtt:
+        - ffmpegZipFunctionRole
+        - Arn
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          FFMPEG_DOWNLOAD_URL:
+            Ref: ffmpegDownloadUrl
+          SUPPORT_FILES_BUCKET:
+            Ref: SupportFilesBucketName
+          FFMPEG_ZIP_NAME:
+            Ref: FFMPEGZipName
+      Code:
+        ZipFile: "import os\nimport boto3\nimport urllib.request\nimport tarfile\n\
+          from zipfile import ZipFile\nimport cfnresponse\nurl = os.environ['FFMPEG_DOWNLOAD_URL']\n\
+          bucket = os.environ['SUPPORT_FILES_BUCKET']\nzip_file_name = os.environ['FFMPEG_ZIP_NAME']\n\
+          def handler(event, context):\n  responseData={}\n  status = cfnresponse.SUCCESS\n\
+          \  if event['RequestType'] != 'Delete':\n    try:\n      os.chdir(\"/tmp\"\
+          )\n      # download ffmpeg\n      tar_file_name='ffmpeg-release-amd64-static.tar.xz'\n\
+          \      print(f\"downloading ffmpeg from {url} to {tar_file_name}\")\n  \
+          \    urllib.request.urlretrieve(url, tar_file_name)\n      # extract desired\
+          \ binary files\n      binaries = [\"ffmpeg\",\"ffprobe\"]\n      tar = tarfile.open(tar_file_name)\n\
+          \      bin_dir=\"bin\"\n      for member in tar.getmembers():\n        \
+          \  basename = os.path.basename(member.name)\n          if basename in binaries:\n\
+          \              member.name = f\"{bin_dir}/{basename}\"\n              print(f\"\
+          extracting {basename} to {member.name}\")\n              tar.extract(member)\n\
+          \      tar.close()\n      # zip the bin directory\n      with ZipFile(zip_file_name,\
+          \ 'w') as zipObj:\n         for folderName, subfolders, filenames in os.walk(bin_dir):\n\
+          \             for filename in filenames:\n                 #create complete\
+          \ filepath of file in directory\n                 filePath = os.path.join(folderName,\
+          \ filename)\n                 # Add file to zip\n                 print(f\"\
+          zipping {filePath}\")\n                 zipObj.write(filePath)\n      #\
+          \ Upload zipfile to S3\n      print(f\"uploading {zip_file_name} to s3 bucket\
+          \ {bucket}\")\n      s3_client = boto3.client('s3')\n      response = s3_client.upload_file(zip_file_name,\
+          \ bucket, zip_file_name)\n    except Exception as e:\n        print(e)\n\
+          \        responseData[\"Error\"] = f\"Exception thrown: {e}\"\n        status\
+          \ = cfnresponse.FAILED\n  cfnresponse.send(event, context, status, responseData)\n"
+  ffmpegZip:
+    Type: Custom::ffmpegZip
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+        - ffmpegZipFunction
+        - Arn
+Outputs:
+  FFMPEGZipName:
+    Value:
+      Ref: FFMPEGZipName

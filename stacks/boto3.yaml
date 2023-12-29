@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Amazon Transcribe Post Call Analytics - PCA Server - Boto3 Layer Zip
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  SupportFilesBucketName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: SupportFilesBucketName
+  Boto3ZipName:
+    Type: String
+    Default: transcribeCallAnalyticsModels.zip
+Resources:
+  boto3ZipFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Resource:
+              Fn::Sub:
+              - arn:aws:s3:::${bucket}*
+              - bucket:
+                  Ref: SupportFilesBucketName
+            Action:
+            - s3:PutObject
+        PolicyName: boto3ZipFunctionS3Policy
+  boto3ZipFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.11
+      Role:
+        Fn::GetAtt:
+        - boto3ZipFunctionRole
+        - Arn
+      Timeout: 60
+      MemorySize: 512
+      Environment:
+        Variables:
+          SUPPORT_FILES_BUCKET:
+            Ref: SupportFilesBucketName
+          BOTO3_ZIP_NAME:
+            Ref: Boto3ZipName
+      Code:
+        ZipFile: "# Package up the Transcribe model version that we need from boto3\
+          \ (missing from Lambda @ 10/1/2021)\n# This can all be removed on Lambda\
+          \ supports Call Analytics APIs withing its built-in boto3 version\nimport\
+          \ os\nimport boto3\nimport urllib.request\nimport tarfile\nfrom zipfile\
+          \ import ZipFile\nimport cfnresponse\nimport sys\nimport shutil\nimport\
+          \ subprocess\nbucket = os.environ['SUPPORT_FILES_BUCKET']\nboto_zip_file_name\
+          \ = os.environ['BOTO3_ZIP_NAME']\ndef handler(event, context):\n  responseData={}\n\
+          \  status = cfnresponse.SUCCESS\n  if event['RequestType'] != 'Delete':\n\
+          \    try:\n      # Shift to the tmp folder, as we're writing files\n   \
+          \   root_path = '/tmp'\n      os.chdir(root_path)\n      # Create a folder\
+          \ to hold the boto3 download\n      pip_folder = \"LocalPipFolder\"\n  \
+          \    os.mkdir(pip_folder)\n      # Create a folder structure to mimic the\
+          \ boto3 model setup for Transcribe\n      zip_folder = \"models\"\n    \
+          \  zip_subfolder_1 = \"transcribe\"\n      zip_subfolder_2 = \"2017-10-26\"\
+          \n      reqs_file = \"requirements.txt\"\n      zip_folders = [zip_folder,zip_subfolder_1,zip_subfolder_2]\n\
+          \      for folder in zip_folders:\n        root_path = os.path.join(root_path,folder)\n\
+          \        os.mkdir(root_path)\n      # Write out the requirements.txt file,\
+          \ which is the boto3 version we need\n      with open(reqs_file, 'w') as\
+          \ f:\n        f.write(\"boto3==1.24.2\")\n        f.close()\n      # Install\
+          \ this version of boto3 locally and copy out Transcribe model\n      subprocess.check_call([sys.executable,\
+          \ \"-m\", \"pip\", \"install\", \"-r\", reqs_file, \"-t\", pip_folder])\n\
+          \      shutil.copy(f\"{pip_folder}/botocore/data/{zip_subfolder_1}/{zip_subfolder_2}/service-2.json\"\
+          , \"/\".join(zip_folders))\n      # Zip up the models folder, maintaining\
+          \ the folder structure\n      with ZipFile(boto_zip_file_name, 'w') as zipObj:\n\
+          \         for folderName, subfolders, filenames in os.walk(zip_folder):\n\
+          \             for filename in filenames:\n                 #create complete\
+          \ filepath of file in directory\n                 filePath = os.path.join(folderName,\
+          \ filename)\n                 # Add file to zip\n                 print(f\"\
+          zipping {filePath}\")\n                 zipObj.write(filePath)\n      #\
+          \ Upload zipfile to S3\n      print(f\"uploading {boto_zip_file_name} to\
+          \ s3 bucket {bucket}\")\n      s3_client = boto3.client('s3')\n      response\
+          \ = s3_client.upload_file(boto_zip_file_name, bucket, boto_zip_file_name)\n\
+          \    except Exception as e:\n        print(e)\n        responseData[\"Error\"\
+          ] = f\"Exception thrown: {e}\"\n        status = cfnresponse.FAILED\n  cfnresponse.send(event,\
+          \ context, status, responseData)\n"
+  boto3Zip:
+    Type: Custom::boto3Zip
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+        - boto3ZipFunction
+        - Arn
+  Boto3Layer:
+    Type: AWS::Lambda::LayerVersion
+    DependsOn: boto3Zip
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: SupportFilesBucketName
+        S3Key:
+          Ref: Boto3ZipName
+Outputs:
+  Boto3Layer:
+    Description: Lambda layer for Boto3 that other Lambdas may need
+    Value:
+      Ref: Boto3Layer
