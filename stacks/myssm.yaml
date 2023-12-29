@@ -281,10 +281,10 @@ Parameters:
   #   Type: String
   #   Description: Kendra Index ID, or empty string if call transcription indexing is
   #     not enabled
-  DatabaseName:
-    Type: String
-    Default: pca
-    Description: Glue catalog database name used to contain tables/views for SQL integration.
+  # DatabaseName:
+  #   Type: String
+  #   Default: pca
+  #   Description: Glue catalog database name used to contain tables/views for SQL integration.
 Resources:
   # BulkUploadBucketParameter:
   #   Type: AWS::SSM::Parameter
@@ -735,14 +735,14 @@ Resources:
   #     Description:
   #       Kendra Index ID, or empty string if call transcription indexing
   #       is not enabled
-  DatabaseNameParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: DatabaseName
-      Type: String
-      Value:
-        Ref: DatabaseName
-      Description: PCA Glue catalog database name
+  # DatabaseNameParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Name: DatabaseName
+  #     Type: String
+  #     Value:
+  #       Ref: DatabaseName
+  #     Description: PCA Glue catalog database name
 # Outputs:
 #   LLMPromptSummaryTemplateParameter:
 #     Value:

@@ -121,112 +121,107 @@ Resources:
             Transitions:
               - TransitionInDays: 1
                 StorageClass: INTELLIGENT_TIERING
-        # SSM:
-        #   Type: AWS::CloudFormation::Stack
-        #   Properties:
-        #     TemplateURL: https://raw.githubusercontent.com/luis95garay/speech2text_sentimentanalysis/main/stacks/myssm.yaml
-        #     Parameters:
-        # BulkUploadBucketName:
-        #   Fn::If:
-        #     - ShouldCreateBulkUploadBucket
-        #     - Ref: BulkUploadBucket
-        #     - Ref: BulkUploadBucketName
-        # BulkUploadMaxDripRate:
-        #   Ref: BulkUploadMaxDripRate
-        # BulkUploadMaxTranscribeJobs:
-        #   Ref: BulkUploadMaxTranscribeJobs
-        # ComprehendLanguages:
-        #   Ref: ComprehendLanguages
-        # ContentRedactionLanguages:
-        #   Ref: ContentRedactionLanguages
-        # ConversationLocation:
-        #   Ref: ConversationLocation
-        # EntityRecognizerEndpoint:
-        #   Ref: EntityRecognizerEndpoint
-        # EntityStringMap:
-        #   Ref: EntityStringMap
-        # EntityThreshold:
-        #   Ref: EntityThreshold
-        # EntityTypes:
-        #   Ref: EntityTypes
-        # InputBucketAudioPlayback:
-        #   Ref: InputBucketAudioPlayback
-        # InputBucketFailedTranscriptions:
-        #   Ref: InputBucketFailedTranscriptions
-        # InputBucketName:
-        #   Fn::If:
-        #     - ShouldCreateInputBucket
-        #     - Ref: InputBucket
-        #     - Ref: InputBucketName
-        # InputBucketRawAudio:
-        #   Ref: InputBucketRawAudio
-        # InputBucketOrigTranscripts:
-        #   Ref: InputBucketOrigTranscripts
-        # MaxSpeakers:
-        #   Ref: MaxSpeakers
-        # MinSentimentNegative:
-        #   Ref: MinSentimentNegative
-        # MinSentimentPositive:
-        #   Ref: MinSentimentPositive
-        # OutputBucketName:
-        #   Fn::If:
-        #     - ShouldCreateOutputBucket
-        #     - Ref: OutputBucket
-        #     - Ref: OutputBucketName
-        # OutputBucketTranscribeResults:
-        #   Ref: OutputBucketTranscribeResults
-        # OutputBucketParsedResults:
-        #   Ref: OutputBucketParsedResults
-        # SpeakerNames:
-        #   Ref: SpeakerNames
-        # SpeakerSeparationType:
-        #   Ref: SpeakerSeparationType
-        # StepFunctionName:
-        #   Ref: StepFunctionName
-        # BulkUploadStepFunctionName:
-        #   Ref: BulkUploadStepFunctionName
-        # SupportFilesBucketName:
-        #   Fn::If:
-        #     - ShouldCreateSupportFilesBucket
-        #     - Ref: SupportFilesBucket
-        #     - Ref: SupportFilesBucketName
-        # TranscribeLanguages:
-        #   Ref: TranscribeLanguages
-        # TranscribeApiMode:
-        #   Ref: TranscribeApiMode
-        # TelephonyCTRType:
-        #   Ref: TelephonyCTRType
-        # TelephonyCTRFileSuffix:
-        #   Ref: TelephonyCTRFileSuffix
-        # CallRedactionTranscript:
-        #   Ref: CallRedactionTranscript
-        # CallRedactionAudio:
-        #   Ref: CallRedactionAudio
-        # VocabFilterName:
-        #   Ref: VocabFilterName
-        # VocabFilterMode:
-        #   Ref: VocabFilterMode
-        # VocabularyName:
-        #   Ref: VocabularyName
-        # CustomLangModelName:
-        #   Ref: CustomLangModelName
-        # FilenameDatetimeRegex:
-        #   Ref: FilenameDatetimeRegex
-        # FilenameDatetimeFieldMap:
-        #   Ref: FilenameDatetimeFieldMap
-        # FilenameGUIDRegex:
-        #   Ref: FilenameGUIDRegex
-        # FilenameAgentRegex:
-        #   Ref: FilenameAgentRegex
-        # FilenameCustRegex:
-        #   Ref: FilenameCustRegex
-        # KendraIndexId:
-        #   Fn::If:
-        #     - ShouldEnableKendraSearch
-        #     - Ref: KendraIndex
-        #     - None
-        # DatabaseName:
-        #   Ref: DatabaseName
+  InputBucketAudioPlaybackParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: InputBucketAudioPlayback
+      Type: String
+      Description:
+        Folder that holds the audio to playback in the browser when original
+        audio cannot be used
+      Value:
+        Ref: InputBucketAudioPlayback
+  InputBucketFailedTranscriptionsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: InputBucketFailedTranscriptions
+      Type: String
+      Description: Folder that holds audio files that for some reason failed transcription
+      Value:
+        Ref: InputBucketFailedTranscriptions
+  # InputBucketNameParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Name: InputBucketName
+  #     Type: String
+  #     Description: Bucket where where audio files are delivered
+  #     Value:
+  #       Ref: InputBucketName
+  InputBucketRawAudioParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: InputBucketRawAudio
+      Type: String
+      Description: Folder that holds the original call audio to be ingested
+      Value:
+        Ref: InputBucketRawAudio
+  InputBucketOrigTranscriptsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: InputBucketOrigTranscripts
+      Type: String
+      Description:
+        "Folder that holds Transcripts from other applications (e.g. Live\
+        \ Call Analytics) that are to be processed as if PCA had processed that audio\n"
+      Value:
+        Ref: InputBucketOrigTranscripts
+  # OutputBucketNameParameter:
+  #   Type: AWS::SSM::Parameter
+  #   Properties:
+  #     Name: OutputBucketName
+  #     Type: String
+  #     Description: Bucket where Transcribe output files are delivered
+  #     Value:
+  #       Ref: OutputBucketName
+  OutputBucketTranscribeResultsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: OutputBucketTranscribeResults
+      Type: String
+      Description:
+        Folder within the output S3 bucket where Transcribe results are
+        written
+      Value:
+        Ref: OutputBucketTranscribeResults
+  OutputBucketParsedResultsParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: OutputBucketParsedResults
+      Type: String
+      Description: Folder within the output S3 bucket where parsed results are written
+      Value:
+        Ref: OutputBucketParsedResults
+  PCAServer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://raw.githubusercontent.com/luis95garay/speech2text_sentimentanalysis/main/stacks/state_machine.template
+    # Parameters:
+    # ffmpegDownloadUrl:
+    #   Ref: ffmpegDownloadUrl
+    # CallSummarization:
+    #   Ref: CallSummarization
+    # SummarizationBedrockModelId:
+    #   Ref: SummarizationBedrockModelId
+    # SummarizationSageMakerInitialInstanceCount:
+    #   Ref: SummarizationSageMakerInitialInstanceCount
+    # SummarizationLLMThirdPartyApiKey:
+    #   Fn::If:
+    #     - ShouldDeployLLMThirdPartyApiKey
+    #     - Ref: LLMThirdPartyApiKeySecret
+    #     - ""
+    # SummarizationLambdaFunctionArn:
+    #   Ref: SummarizationLambdaFunctionArn
+    # PyUtilsLayerArn:
+    #   Fn::GetAtt:
+    #     # - PythonUtilsLayer
+    #     - Outputs.PyUtilsLayer
+    # Boto3LayerArn:
+    #   Fn::If:
+    #     - ShouldDeployBedrockBoto3Layer
+    #     - Fn::GetAtt:
+    #         - BedrockBoto3Layer
+    #         - Outputs.Boto3Layer
+    #     - ""
 Outputs:
   InputBucket:
     Description: S3 Bucket for uploading input audio files
