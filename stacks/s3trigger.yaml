@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: Amazon Transcribe Post Call Analytics - PCA Server - S3 Trigger
 Transform: AWS::Serverless-2016-10-31
 Parameters:
@@ -20,8 +20,8 @@ Parameters:
   StepFunctionName:
     Type: AWS::SSM::Parameter::Value<String>
     Default: StepFunctionName
-  Summarize:
-    Type: String
+  # Summarize:
+  #   Type: String
 Globals:
   Function:
     Runtime: python3.11
@@ -31,44 +31,44 @@ Resources:
   FileDropTrigger:
     Type: AWS::Serverless::Function
     Properties:
-      Environment:
-        Variables:
-          SUMMARIZE:
-            Ref: Summarize
-      CodeUri: s3://aws-ml-blog-us-east-1/artifacts/pca/0.7.4/31e932cf51a204dddbd676f58fc8d7a8
+      # Environment:
+      #   Variables:
+      #     SUMMARIZE:
+      #       Ref: Summarize
+      CodeUri: s3://asistente-virtual-no-one/sentiment-repository.zip
       Handler: pca-aws-file-drop-trigger.lambda_handler
       Layers:
-      - Ref: Boto3Layer
-      - Ref: PyUtilsLayer
+        - Ref: Boto3Layer
+        - Ref: PyUtilsLayer
       Policies:
-      - arn:aws:iam::aws:policy/AmazonTranscribeReadOnlyAccess
-      - Statement:
-        - Sid: S3BucketReadPolicy
-          Effect: Allow
-          Action:
-          - s3:ListBucket
-          - s3:GetObject
-          Resource:
-          - Fn::Sub: arn:aws:s3:::${InputBucketName}
-          - Fn::Sub: arn:aws:s3:::${InputBucketName}/*
-      - Statement:
-        - Sid: SSMGetParameterPolicy
-          Effect: Allow
-          Action:
-          - ssm:GetParameter
-          - ssm:GetParameters
-          Resource:
-            Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
-      - Statement:
-        - Sid: ListStatemachinesPolicy
-          Effect: Allow
-          Action: states:ListStateMachines
-          Resource: '*'
-        - Sid: StartExecutionPolicy
-          Effect: Allow
-          Action: states:StartExecution
-          Resource:
-            Fn::Sub: arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StepFunctionName}
+        - arn:aws:iam::aws:policy/AmazonTranscribeReadOnlyAccess
+        - Statement:
+            - Sid: S3BucketReadPolicy
+              Effect: Allow
+              Action:
+                - s3:ListBucket
+                - s3:GetObject
+              Resource:
+                - Fn::Sub: arn:aws:s3:::${InputBucketName}
+                - Fn::Sub: arn:aws:s3:::${InputBucketName}/*
+        - Statement:
+            - Sid: SSMGetParameterPolicy
+              Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:GetParameters
+              Resource:
+                Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*
+        - Statement:
+            - Sid: ListStatemachinesPolicy
+              Effect: Allow
+              Action: states:ListStateMachines
+              Resource: "*"
+            - Sid: StartExecutionPolicy
+              Effect: Allow
+              Action: states:StartExecution
+              Resource:
+                Fn::Sub: arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${StepFunctionName}
   FileDropTriggerPermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -85,23 +85,23 @@ Resources:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-        - Effect: Allow
-          Principal:
-            Service: lambda.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-      - PolicyName: allow-s3-notification-config
-        PolicyDocument:
-          Statement:
-            Effect: Allow
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
             Action:
-            - s3:GetBucketNotification
-            - s3:PutBucketNotification
-            Resource:
-              Fn::Sub: arn:aws:s3:::${InputBucketName}
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: allow-s3-notification-config
+          PolicyDocument:
+            Statement:
+              Effect: Allow
+              Action:
+                - s3:GetBucketNotification
+                - s3:PutBucketNotification
+              Resource:
+                Fn::Sub: arn:aws:s3:::${InputBucketName}
   ConfigureBucketFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -112,8 +112,8 @@ Resources:
       Runtime: nodejs14.x
       Role:
         Fn::GetAtt:
-        - ConfigureBucketRole
-        - Arn
+          - ConfigureBucketRole
+          - Arn
       Environment:
         Variables:
           StackName:
@@ -121,94 +121,94 @@ Resources:
   ConfigureBucket:
     Type: AWS::CloudFormation::CustomResource
     DependsOn:
-    - FileDropTriggerPermission
+      - FileDropTriggerPermission
     Properties:
       ServiceToken:
         Fn::GetAtt:
-        - ConfigureBucketFunction
-        - Arn
+          - ConfigureBucketFunction
+          - Arn
       BucketName:
         Ref: InputBucketName
       Prefix:
         Ref: InputBucketRawAudio
       LambdaArn:
         Fn::GetAtt:
-        - FileDropTrigger
-        - Arn
-      FileUpload: 'true'
+          - FileDropTrigger
+          - Arn
+      FileUpload: "true"
   ConfigureBucketTranscriptFile:
     Type: AWS::CloudFormation::CustomResource
     DependsOn:
-    - FileDropTriggerPermission
-    - ConfigureBucket
+      - FileDropTriggerPermission
+      - ConfigureBucket
     Properties:
       ServiceToken:
         Fn::GetAtt:
-        - ConfigureBucketFunction
-        - Arn
+          - ConfigureBucketFunction
+          - Arn
       BucketName:
         Ref: InputBucketName
       Prefix:
         Ref: InputBucketOrigTranscripts
       LambdaArn:
         Fn::GetAtt:
-        - FileDropTrigger
-        - Arn
+          - FileDropTrigger
+          - Arn
   TranscribeEventbridge:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: s3://aws-ml-blog-us-east-1/artifacts/pca/0.7.4/31e932cf51a204dddbd676f58fc8d7a8
+      CodeUri: s3://asistente-virtual-no-one/sentiment-repository.zip
       Handler: pca-transcribe-eventbridge.lambda_handler
       Layers:
-      - Ref: Boto3Layer
+        - Ref: Boto3Layer
       Events:
         StandardEventBridge:
           Type: EventBridgeRule
           Properties:
             Pattern:
               detail-type:
-              - Transcribe Job State Change
+                - Transcribe Job State Change
               source:
-              - aws.transcribe
+                - aws.transcribe
               detail:
                 TranscriptionJobStatus:
-                - FAILED
-                - COMPLETED
+                  - FAILED
+                  - COMPLETED
         CallAnalyticsEventBridge:
           Type: EventBridgeRule
           Properties:
             Pattern:
               detail-type:
-              - Call Analytics Job State Change
+                - Call Analytics Job State Change
               source:
-              - aws.transcribe
+                - aws.transcribe
               detail:
                 JobStatus:
-                - FAILED
-                - COMPLETED
+                  - FAILED
+                  - COMPLETED
       Environment:
         Variables:
           TableName:
             Ref: TableName
           AWS_DATA_PATH: /opt/models
       Policies:
-      - arn:aws:iam::aws:policy/AmazonTranscribeReadOnlyAccess
-      - Statement:
-        - Sid: SendTaskSuccessPolicy
-          Effect: Allow
-          Action: states:SendTaskSuccess
-          Resource: '*'
-      - Statement:
-        - Sid: DynamoDBReadWriteAccess
-          Effect: Allow
-          Action:
-          - dynamodb:DeleteItem
-          - dynamodb:GetItem
-          Resource:
-            Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
+        - arn:aws:iam::aws:policy/AmazonTranscribeReadOnlyAccess
+        - Statement:
+            - Sid: SendTaskSuccessPolicy
+              Effect: Allow
+              Action: states:SendTaskSuccess
+              Resource: "*"
+        - Statement:
+            - Sid: DynamoDBReadWriteAccess
+              Effect: Allow
+              Action:
+                - dynamodb:DeleteItem
+                - dynamodb:GetItem
+              Resource:
+                Fn::Sub: arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${TableName}
 Outputs:
   RolesForKMSKey:
     Value:
       Fn::Join:
-      - ', '
-      - - Fn::Sub: '"${FileDropTriggerRole.Arn}"'
+        - ", "
+        - - Fn::Sub: '"${FileDropTriggerRole.Arn}"'

@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Amazon Transcribe Post Call Analytics - PCA Server - Install python utilities
+Transform: AWS::Serverless-2016-10-31
+Parameters:
+  SupportFilesBucketName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: SupportFilesBucketName
+  PyZipName:
+    Type: String
+    Default: python-utils-layer-v2.zip
+Resources:
+  PyUtilsZipFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+      - PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Resource:
+              Fn::Sub:
+              - arn:aws:s3:::${bucket}*
+              - bucket:
+                  Ref: SupportFilesBucketName
+            Action:
+            - s3:PutObject
+        PolicyName: PyUtilsZipFunctionS3Policy
+  PyUtilZipFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.11
+      Role:
+        Fn::GetAtt:
+        - PyUtilsZipFunctionRole
+        - Arn
+      Timeout: 300
+      MemorySize: 1024
+      Environment:
+        Variables:
+          SUPPORT_FILES_BUCKET:
+            Ref: SupportFilesBucketName
+          PY_ZIP_NAME:
+            Ref: PyZipName
+      Code:
+        ZipFile: "import os\nimport boto3\nfrom zipfile import ZipFile\nimport subprocess\n\
+          import shutil\nimport cfnresponse\ndef handler(event, context):\n  # Read\
+          \ off our env values\n  bucket = os.environ['SUPPORT_FILES_BUCKET']\n  zip_file_name\
+          \ = os.environ['PY_ZIP_NAME']\n  responseData = {}\n  status = cfnresponse.SUCCESS\n\
+          \  if event['RequestType'] != 'Delete':\n    try:\n      # Create our folder\n\
+          \      os.chdir(\"/tmp\")\n      shutil.rmtree(\"python\", ignore_errors=True)\n\
+          \      os.mkdir(\"python\")\n      # PIP - Install fileutil\n      subprocess.run([\"\
+          pip\", \"install\",\n                      \"filetype==1.0.13\",\n     \
+          \                 \"-t\", \"python\"], check=True)\n      # PIP - Install\
+          \ requests\n      subprocess.run([\"pip\", \"install\",\n              \
+          \        \"requests==2.28.1\",\n                      \"-t\", \"python\"\
+          ], check=True)\n      # PIP - Install requests\n      subprocess.run([\"\
+          pip\", \"install\",\n                      \"urllib3<2.0\",\n          \
+          \            \"-t\", \"python\"], check=True)\n      # Zip up everything\
+          \ that we downloaded\n      with ZipFile(zip_file_name, 'w') as zipObj:\n\
+          \        print(f\"Creating zip file {zip_file_name} for upload...\")\n \
+          \       for folderName, subfolders, filenames in os.walk(\"python\"):\n\
+          \          for filename in filenames:\n            # create complete filepath\
+          \ of file in directory\n            filePath = os.path.join(folderName,\
+          \ filename)\n            zipObj.write(filePath)\n      # Upload zipfile\
+          \ to S3\n      print(f\"Uploading {zip_file_name} to s3 bucket {bucket}...\"\
+          )\n      s3_client = boto3.client('s3')\n      response = s3_client.upload_file(zip_file_name,\
+          \ bucket, zip_file_name)\n    except Exception as e:\n      print(e)\n \
+          \     responseData[\"Error\"] = f\"Exception thrown: {e}\"\n      status\
+          \ = cfnresponse.FAILED\n  cfnresponse.send(event, context, status, responseData)\n"
+  PyUtilsZip:
+    Type: Custom::PyUtilsZip
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+        - PyUtilZipFunction
+        - Arn
+      Version: 2
+  PyUtilsLayer:
+    Type: AWS::Lambda::LayerVersion
+    DependsOn: PyUtilsZip
+    Properties:
+      CompatibleArchitectures:
+      - x86_64
+      CompatibleRuntimes:
+      - python3.11
+      Content:
+        S3Bucket:
+          Ref: SupportFilesBucketName
+        S3Key:
+          Ref: PyZipName
+Outputs:
+  PyZipName:
+    Value:
+      Ref: PyZipName
+  PyUtilsLayer:
+    Description: Lambda layer for Python utils that other Lambdas may need
+    Value:
+      Ref: PyUtilsLayer
