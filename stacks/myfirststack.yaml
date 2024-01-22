@@ -22,26 +22,27 @@ Resources:
         # - arn:aws:iam::aws:policy/AmazonS3FullAccess  # Grants full access to S3 (adjust as needed)
         # - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess  # Grants full access to CloudWatch Logs (adjust as needed)
         # Add other managed policies as needed for your CodeBuild project
-#   MyCodeBuildProject:
-#     Type: AWS::CodeBuild::Project
-#     Properties:
-#       Artifacts:
-#         Type: CODEPIPELINE
-#       Environment:
-#         Type: LINUX_CONTAINER
-#         ComputeType: BUILD_GENERAL1_SMALL
-#         Image: aws/codebuild/standard:5.0
-#       ServiceRole: !GetAtt CodeBuildRole.Arn
-#       Source:
-#         Type: GITHUB
-#         Location: https://github.com/luis95garay/speech2text_sentimentanalysis.git
-#       BuildSpec:
-#         version: 0.2
-#         phases:
-#           build:
-#             commands:
-#               - docker build -t my-image .
-#               - docker tag my-image:latest !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/my-first-repo:latest
+  MyCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+      ServiceRole: !GetAtt CodeBuildRole.Arn
+      Source:
+        Type: GITHUB
+        Location: https://github.com/luis95garay/speech2text_sentimentanalysis.git
+      BuildSpec:
+        version: 0.2
+        phases:
+          build:
+            commands:
+              - echo starting CodeBuild
+              - docker build -t my-image .
+              - docker tag my-image:latest !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/my-first-repo:latest
 # Outputs:
 #   ImageArtifactLocation:
 #     Value: !Sub s3://${MyCodeBuildProject.Artifacts.Location}
